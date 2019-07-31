@@ -1,0 +1,67 @@
+createObject(String JsonStringWhatUserIsPassing, int ttl)
+	- This method must create a JSONObject with the following keys we will call it as MASTER_OBJECT
+		- key ( Random UUID )
+		- actualJsonObject - it itself is a JSONObject - we will call this ACT_OBJ for our discussion
+		- creationTimeStamp
+		- ttl (0 if not provided)
+	- Flow of this method,
+		- check if the message size is less == 16KB
+		- check if the adding this message will make the folder greater than 1 GB
+			- Failure 
+				- Throw ExceededAllowedBlahBlah Exception and provide a message
+			- Success
+				- Create a JSONObject to store the incoming string
+					- Failure to create JSONObject
+						- Throw BadInput Exception and give a meaning message with the Exception
+					- Successful creation 
+						- ACT_OBJ is inserted into the MASTER_OBJECT
+				- Now we have MASTER_OBJECT will all 4 key and we insert 
+					- Convert this MASTER_OBJECT into a String and write into the file
+						- On success write
+							- Write the id and file name into a INDEX file
+
+
+getObject(String key) 
+	- Check if the index file has the key
+		- No
+			- throw NotFound Exception
+		- YES
+			- Get the file name
+			- Read the file contents
+			- Locate the record
+			- Retrieve
+				- ACT_OBJ
+				- ttl
+				- create timeStamp fields
+			- Check if ttl is greater than 0 and add it to the Create Time Stamp and then compare it with Current time Stamp
+				- Example 
+					- if TTL is 3600 ( 1 hr )
+					- Create Time Stamo is 4:30 PM
+					- When the request comes in @ 5:15 PM to read this object
+						- Add 1 hr to 4:30 = 5:30 PM
+						- Time is now 5:15 PM so the object is accessible for next 15 more minutes hence can be shown
+						- But id the req comes in @ 7:30 PM , throw NOT FOUND Exception
+			- Return ACT_OBJ from this method
+
+
+deleteObject(String key)
+	- Check if the index file has the key
+		- No
+			- throw NotFound Exception
+		- YES
+			- Get the file name
+			- Read the file contents
+			- Locate the record
+			- Retrieve
+				- ACT_OBJ
+				- ttl
+				- create timeStamp fields
+			- Check if ttl is greater than 0 and add it to the Create Time Stamp and then compare it with Current time Stamp
+				- Example 
+					- if TTL is 3600 ( 1 hr )
+					- Create Time Stamo is 4:30 PM
+					- When the request comes in @ 5:15 PM to read this object
+						- Add 1 hr to 4:30 = 5:30 PM
+						- Time is now 5:15 PM so the object is DELETABLE for next 15 more minutes hence can be shown
+						- But id the req comes in @ 7:30 PM , throw NOT FOUND Exception
+			- REMOVE THE RECORD and the entry from INDEX too
