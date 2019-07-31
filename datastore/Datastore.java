@@ -58,8 +58,8 @@ public class Datastore {
         file_num=1;
         fname="db";
         txt=".txt";
-        cur_file_path=this.cur_file_path;
-        index=this.index;
+        this.cur_file_path=cur_file_path;
+        this.index=index;
         // Create the index file,data file in the default.db folder
         
         CreateFile(index);
@@ -96,18 +96,15 @@ public class Datastore {
        
         
 //time stamp checking
-        long time=jsonObject.get("createTimeStamp").getAsLong();
-        long createTimeStamp = (time/1000L);   
-        long ttl=jsonObject.get("ttlInSeconds").getAsLong();
-        long currentTimeStamp = createTimeStamp + ttl;
+        long resultantTime=check_ttl(jsonObject);
         
         //if current timestamp is positive then time exceeded
-        if(data.equals(key) && currentTimeStamp<0) { 
+        if(data.equals(key) && resultantTime<0) { 
             // a match!
             JsonElement actualData=jsonObject.get("actualObjectToBeReturned");//;getAsJsonObject(lineFromFile).get("actualObjectToBeReturned").getAsString();
             return actualData;
             }
-        else if(data.equals(key) && currentTimeStamp>=0)
+        else if(data.equals(key) && resultantTime>=0)
         {
             System.out.println("Time exceeded so unavailable for read");
         }
@@ -123,8 +120,8 @@ public class Datastore {
         String file_name=searchIndex(key);
         if(!"".equals(file_name))
         {
-        deleteHelperMethod(cur_file_path+file_name,key);
-        deleteHelperMethod(index,key);
+        deleteHelperMethod(file_name,key,true);
+        deleteHelperMethod(index,key,false);
         }
         else
         {
@@ -132,9 +129,15 @@ public class Datastore {
         }
   
  }
-    public void deleteHelperMethod(String file_name,String key)
+public void deleteHelperMethod(String file_name,String key,boolean flag)
     {
-         File oldFile=new File(file_name);
+        File oldFile;
+        if(flag) {
+            oldFile=new File(cur_file_path+file_name);
+        } else {
+            oldFile=new File(file_name);
+        }
+
             System.out.println("reading the data file");
             String tempFile=cur_file_path+"temp.txt";
             File newFile=new File(tempFile);
@@ -146,11 +149,19 @@ public class Datastore {
                 Scanner sc=new Scanner(oldFile);
                 while(sc.hasNextLine())
                 {
-                String lineFromFile =sc.nextLine();         
-                JsonObject jsonObject = new JsonParser().parse(lineFromFile).getAsJsonObject();
+                String lineFromFile =sc.nextLine();   
                 String data;
+                if(flag)
+                {
+                JsonObject jsonObject = new JsonParser().parse(lineFromFile).getAsJsonObject();
                 data = jsonObject.get("id").getAsString();
+                }
+                else
+                {
+                String ar[]=lineFromFile.split(":");
+                data = ar[0].replace("\"","");
                 
+                }
                 //compare tthe data and the key
                 if(!data.equals(key)) {
                    pw.println(lineFromFile); 
@@ -160,13 +171,23 @@ public class Datastore {
                 pw.flush();
                 pw.close();
                 
-                oldFile.delete();
-                File dump=new File(file_name);
-                newFile.renameTo(dump);
+                //oldFile.delete();
+                 if (!oldFile.delete()) {
+                      System.out.println("Could not delete file");
+                      return;
+                  }
+
+                  // Rename the new file to the filename the original file had.
+                  if (!newFile.renameTo(oldFile))
+                      System.out.println("Could not rename file");
+               // File dump=new File(file_name);
+                //newFile.renameTo(dump);
+                //oldFile.delete();
                 System.out.println(key + " was deleted.");
             }
             catch(Exception e)
             {
+                e.printStackTrace();
                 System.out.println("Error in deleting the key value pair");
             }
     }
@@ -180,7 +201,7 @@ public class Datastore {
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("id", idToBeCreated);
         jsonObject.addProperty("createTimeStamp" ,System.currentTimeMillis());//new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date())
-        jsonObject.addProperty("ttlInSeconds" , 3600);
+        jsonObject.addProperty("ttlInSeconds" , 1);//3600
 
 
         try{
@@ -276,5 +297,14 @@ public class Datastore {
            }
           scanner.close();
              return file_name;
+    }
+
+    private long check_ttl(JsonObject jsonObject) {
+        long time=jsonObject.get("createTimeStamp").getAsLong();
+        long createTimeStamp = (time/1000L);   
+        long ttl=jsonObject.get("ttlInSeconds").getAsLong();
+        long currentTimeStamp =(System.currentTimeMillis()/1000L);
+        long resultantTime= currentTimeStamp-(createTimeStamp + ttl); 
+        return resultantTime;
     }
 }
